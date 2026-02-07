@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pneumonia Detection System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .glass { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-cyan-900 to-slate-900 min-h-screen flex items-center justify-center p-6">
+    
+    <div class="w-full max-w-7xl bg-slate-800/50 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-700/50 p-8">
+        
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-white mb-2 tracking-tight">🫁 Pneumonia Detection</h1>
+            <p class="text-slate-400 text-lg">AI-Powered Medical Image Analysis</p>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid lg:grid-cols-2 gap-8">
+            
+            <!-- Left Panel: Upload & Preview -->
+            <div class="space-y-6">
+                
+                <!-- Upload Area -->
+                <div id="uploadArea" class="border-2 border-dashed border-slate-600 hover:border-cyan-500 rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 bg-slate-900/50 hover:bg-slate-800/50 group">
+                    <div class="text-5xl mb-3 group-hover:scale-110 transition-transform">📤</div>
+                    <h3 class="text-lg font-semibold text-white mb-1">Upload Chest X-Ray</h3>
+                    <p class="text-slate-400 text-sm">Click or drag & drop your image here</p>
+                    <p class="text-slate-500 text-xs mt-1">Supports: JPG, PNG</p>
+                    <input type="file" id="fileInput" accept="image/*" class="hidden">
+                </div>
+
+                <!-- Image Preview -->
+                <div id="previewBox" class="hidden bg-slate-900/50 rounded-2xl p-6 border border-slate-700">
+                    <img id="preview" class="w-full h-48 object-contain rounded-xl">
+                </div>
+
+                <!-- Analyze Button -->
+                <button id="predictBtn" class="hidden w-full bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                    Analyze X-Ray
+                </button>
+
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="bg-slate-900/50 rounded-2xl p-8 border border-slate-700 flex items-center justify-center min-h-[500px]">
+                
+                <!-- Placeholder -->
+                <div id="placeholder" class="text-center">
+                    <div class="text-6xl mb-4 opacity-50">🔬</div>
+                    <p class="text-slate-400 text-lg">Upload an X-ray to see results</p>
+                </div>
+
+                <!-- Results Card -->
+                <div id="result" class="hidden w-full">
+                    <div id="resultCard" class="space-y-6">
+                        
+                        <!-- Status Badge -->
+                        <div class="flex items-center justify-center gap-3 mb-6">
+                            <span id="statusIcon" class="text-5xl"></span>
+                            <h2 id="statusText" class="text-3xl font-bold"></h2>
+                        </div>
+
+                        <!-- Confidence Score -->
+                        <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-slate-400 font-medium">Confidence Score</span>
+                                <span id="confidenceText" class="text-2xl font-bold text-white"></span>
+                            </div>
+                            
+                            <!-- Progress Bar -->
+                            <div class="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+                                <div id="confidenceBar" class="h-full rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewBox = document.getElementById('previewBox');
+        const preview = document.getElementById('preview');
+        const predictBtn = document.getElementById('predictBtn');
+        const placeholder = document.getElementById('placeholder');
+        const result = document.getElementById('result');
+        const resultCard = document.getElementById('resultCard');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusText = document.getElementById('statusText');
+        const confidenceText = document.getElementById('confidenceText');
+        const confidenceBar = document.getElementById('confidenceBar');
+        
+        let selectedFile = null;
+
+        uploadArea.onclick = () => fileInput.click();
+
+        fileInput.onchange = () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            selectedFile = file;
+            preview.src = URL.createObjectURL(file);
+            previewBox.classList.remove('hidden');
+            predictBtn.classList.remove('hidden');
+            placeholder.classList.remove('hidden');
+            result.classList.add('hidden');
+        };
+
+        predictBtn.onclick = async () => {
+            predictBtn.disabled = true;
+            predictBtn.textContent = "Analyzing...";
+            
+            const formData = new FormData();
+            formData.append("image", selectedFile);
+
+            const response = await fetch("/predict", { method: "POST", body: formData });
+            const data = await response.json();
+            const confidence = (data.confidence * 100).toFixed(1);
+            const isPneumonia = data.prediction === "Pneumonia";
+
+            placeholder.classList.add('hidden');
+            result.classList.remove('hidden');
+
+            // Set icon and text
+            statusIcon.textContent = isPneumonia ? '⚠️' : '✅';
+            statusText.textContent = isPneumonia ? 'Pneumonia Detected' : 'Normal';
+            statusText.className = isPneumonia ? 'text-3xl font-bold text-red-400' : 'text-3xl font-bold text-green-400';
+            
+            // Set confidence
+            confidenceText.textContent = confidence + '%';
+            confidenceBar.style.width = confidence + '%';
+            confidenceBar.className = isPneumonia 
+                ? 'h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-red-500 to-red-600'
+                : 'h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-green-500 to-green-600';
+
+            predictBtn.disabled = false;
+            predictBtn.textContent = "Analyze X-Ray";
+        };
+    </script>
+
+</body>
+</html>
